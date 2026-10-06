@@ -1,3 +1,4 @@
+import CreateClassModal from "../components/CreateClassModal";
 import { useEffect, useState } from "react";
 import { getUserClasses } from "../services/classes";
 import { supabase } from "../supabaseClient";
@@ -11,27 +12,36 @@ export default function Dashboard({ session }) {
   const [classes, setClasses] = useState([]);
   const [classesLoading, setClassesLoading] = useState(true);
   const [classesError, setClassesError] = useState(null);
+  const [showCreateModal, setShowCreateModal] = useState(false);
 
   const userId = session?.user?.id;
 
-  useEffect(() => {
-    async function loadClasses() {
-      const { data, error } = await getUserClasses(session.user.id);
+  // Load classes for the current user
+  async function loadClasses() {
+    if (!userId) return;
 
-      if (error) {
-        console.error("Failed to load classes:", error);
-        setClassesError(error.message);
-        setClassesLoading(false);
-        return;
-      }
+    setClassesLoading(true);
+    setClassesError(null);
 
+    const { data, error } = await getUserClasses(userId);
+
+    if (error) {
+      console.error("Failed to load classes:", error);
+      setClassesError(error.message);
+      setClasses([]);
+    } else {
       setClasses(data || []);
-      setClassesLoading(false);
     }
 
-    loadClasses();
-  }, [session.user.id]);
+    setClassesLoading(false);
+  }
 
+  // Load classes when the user ID is available
+  useEffect(() => {
+    loadClasses();
+  }, [userId]);
+
+  // Load user profile
   useEffect(() => {
     async function loadProfile() {
       if (!userId) return;
@@ -47,6 +57,7 @@ export default function Dashboard({ session }) {
       } else {
         setProfile(data);
       }
+
       setLoading(false);
     }
 
@@ -57,14 +68,19 @@ export default function Dashboard({ session }) {
     await supabase.auth.signOut();
   }
 
-  // Authoritative data from database (with fallback to user_metadata or email)
+  // Get name from database first
   const name =
     profile?.name ||
     session?.user?.user_metadata?.name ||
     session?.user?.email?.split("@")[0] ||
     "User";
 
-  const role = profile?.role || session?.user?.user_metadata?.role || "student";
+  // Get role from database first
+  const role =
+    profile?.role ||
+    session?.user?.user_metadata?.role ||
+    "student";
+
   const isActive = profile ? profile.is_active : true;
 
   if (loading) {
@@ -72,7 +88,9 @@ export default function Dashboard({ session }) {
       <div style={styles.container}>
         <div style={styles.stateCenter}>
           <div style={styles.spinner} />
-          <p style={styles.stateText}>Loading profile from database...</p>
+          <p style={styles.stateText}>
+            Loading profile from database...
+          </p>
         </div>
       </div>
     );
@@ -84,15 +102,26 @@ export default function Dashboard({ session }) {
       <div style={styles.container}>
         <div style={styles.stateCenter}>
           <div style={styles.deactivatedCard}>
-            <h2 style={{ ...styles.welcomeTitle, color: "#dc2626" }}>
+            <h2
+              style={{
+                ...styles.welcomeTitle,
+                color: "#dc2626",
+              }}
+            >
               Account Deactivated
             </h2>
+
             <p style={styles.welcomeDesc}>
-              Your account has been deactivated in the system. Please contact your school administrator.
+              Your account has been deactivated in the system.
+              Please contact your school administrator.
             </p>
+
             <button
               onClick={handleSignOut}
-              style={{ ...styles.signOutBtn, marginTop: "16px" }}
+              style={{
+                ...styles.signOutBtn,
+                marginTop: "16px",
+              }}
             >
               Sign Out
             </button>
@@ -107,16 +136,26 @@ export default function Dashboard({ session }) {
       <header style={styles.header}>
         <div style={styles.brand}>
           <div style={styles.logoMark}>S</div>
+
           <div>
-            <h1 style={styles.appTitle}>School Platform</h1>
+            <h1 style={styles.appTitle}>
+              School Platform
+            </h1>
+
             <p style={styles.userSubtitle}>
               Signed in as <strong>{name}</strong>
-              <span style={styles.roleBadge}>{role}</span>
+
+              <span style={styles.roleBadge}>
+                {role}
+              </span>
             </p>
           </div>
         </div>
 
-        <button onClick={handleSignOut} style={styles.signOutBtn}>
+        <button
+          onClick={handleSignOut}
+          style={styles.signOutBtn}
+        >
           Sign Out
         </button>
       </header>
@@ -124,37 +163,64 @@ export default function Dashboard({ session }) {
       <main style={styles.main}>
         {error && (
           <div style={styles.errorBanner}>
-            <strong>Notice:</strong> Could not load profile from <code>public.users</code> ({error}).
+            <strong>Notice:</strong> Could not load profile
+            from <code>public.users</code> ({error}).
             Displaying cached session metadata.
           </div>
         )}
 
         <div style={styles.welcomeCard}>
-          <h2 style={styles.welcomeTitle}>Welcome back, {name}!</h2>
+          <h2 style={styles.welcomeTitle}>
+            Welcome back, {name}!
+          </h2>
+
           <p style={styles.welcomeDesc}>
-            This is your classes dashboard. You are logged in as a <strong>{role}</strong>.
+            This is your classes dashboard. You are logged
+            in as a <strong>{role}</strong>.
           </p>
         </div>
 
         <div style={styles.sectionHeader}>
-          <h3 style={styles.sectionTitle}>Your Classes</h3>
-          <button style={styles.actionBtn}>
-            {role === "teacher" ? "+ Create Class" : "+ Join Class"}
+          <h3 style={styles.sectionTitle}>
+            Your Classes
+          </h3>
+
+          <button
+            onClick={() => {
+              if (role === "teacher") {
+                setShowCreateModal(true);
+              }
+            }}
+            style={styles.actionBtn}
+          >
+            {role === "teacher"
+              ? "+ Create Class"
+              : "+ Join Class"}
           </button>
         </div>
 
         {classesLoading ? (
           <div style={styles.emptyState}>
-            <p style={styles.emptyText}>Loading classes...</p>
+            <p style={styles.emptyText}>
+              Loading classes...
+            </p>
           </div>
         ) : classesError ? (
           <div style={styles.emptyState}>
-            <p style={styles.emptyText}>Unable to load classes.</p>
-            <p style={styles.emptySubtext}>{classesError}</p>
+            <p style={styles.emptyText}>
+              Unable to load classes.
+            </p>
+
+            <p style={styles.emptySubtext}>
+              {classesError}
+            </p>
           </div>
         ) : classes.length === 0 ? (
           <div style={styles.emptyState}>
-            <p style={styles.emptyText}>No classes joined yet.</p>
+            <p style={styles.emptyText}>
+              No classes joined yet.
+            </p>
+
             <p style={styles.emptySubtext}>
               {role === "teacher"
                 ? "Create your first class to invite students."
@@ -164,14 +230,45 @@ export default function Dashboard({ session }) {
         ) : (
           <div>
             {classes.map((membership) => (
-              <div key={membership.classes.id}>
-                <h4>{membership.classes.name}</h4>
-                <p>Role: {membership.role}</p>
+              <div
+                key={membership.classes.id}
+                style={styles.classCard}
+              >
+                <h4 style={styles.className}>
+                  {membership.classes.name}
+                </h4>
+
+                <p style={styles.classInfo}>
+                  Role: {membership.role}
+                </p>
+
+                {membership.role === "teacher" && (
+                  <p style={styles.classInfo}>
+                    Join Code:{" "}
+                    <strong>
+                      {membership.classes.join_code}
+                    </strong>
+                  </p>
+                )}
               </div>
             ))}
           </div>
         )}
       </main>
+
+      {/* Create Class Modal */}
+      {showCreateModal && role === "teacher" && (
+        <CreateClassModal
+          userId={userId}
+          onClose={() => {
+            setShowCreateModal(false);
+          }}
+          onCreated={() => {
+            setShowCreateModal(false);
+            loadClasses();
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -180,9 +277,11 @@ const styles = {
   container: {
     minHeight: "100vh",
     backgroundColor: "#fafafa",
-    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+    fontFamily:
+      '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
     color: "#111827",
   },
+
   header: {
     display: "flex",
     justifyContent: "space-between",
@@ -191,11 +290,13 @@ const styles = {
     backgroundColor: "#ffffff",
     borderBottom: "1px solid #eaeaea",
   },
+
   brand: {
     display: "flex",
     alignItems: "center",
     gap: "12px",
   },
+
   logoMark: {
     width: "36px",
     height: "36px",
@@ -208,12 +309,14 @@ const styles = {
     fontWeight: "700",
     fontSize: "16px",
   },
+
   appTitle: {
     margin: 0,
     fontSize: "16px",
     fontWeight: "600",
     letterSpacing: "-0.01em",
   },
+
   userSubtitle: {
     margin: "2px 0 0 0",
     fontSize: "12px",
@@ -222,6 +325,7 @@ const styles = {
     alignItems: "center",
     gap: "6px",
   },
+
   roleBadge: {
     backgroundColor: "#f3f4f6",
     color: "#374151",
@@ -231,6 +335,7 @@ const styles = {
     textTransform: "capitalize",
     fontWeight: "500",
   },
+
   signOutBtn: {
     padding: "8px 14px",
     fontSize: "13px",
@@ -242,11 +347,13 @@ const styles = {
     cursor: "pointer",
     transition: "all 0.15s ease",
   },
+
   main: {
     maxWidth: "900px",
     margin: "0 auto",
     padding: "32px 24px",
   },
+
   welcomeCard: {
     backgroundColor: "#ffffff",
     border: "1px solid #eaeaea",
@@ -254,30 +361,35 @@ const styles = {
     padding: "24px 28px",
     marginBottom: "28px",
   },
+
   welcomeTitle: {
     margin: "0 0 6px 0",
     fontSize: "20px",
     fontWeight: "600",
     letterSpacing: "-0.02em",
   },
+
   welcomeDesc: {
     margin: 0,
     fontSize: "14px",
     color: "#6b7280",
     lineHeight: "1.5",
   },
+
   sectionHeader: {
     display: "flex",
     justifyContent: "space-between",
     alignItems: "center",
     marginBottom: "16px",
   },
+
   sectionTitle: {
     margin: 0,
     fontSize: "16px",
     fontWeight: "600",
     letterSpacing: "-0.01em",
   },
+
   actionBtn: {
     padding: "8px 16px",
     fontSize: "13px",
@@ -288,6 +400,7 @@ const styles = {
     borderRadius: "8px",
     cursor: "pointer",
   },
+
   emptyState: {
     backgroundColor: "#ffffff",
     border: "1px dashed #d1d5db",
@@ -295,17 +408,40 @@ const styles = {
     padding: "48px 24px",
     textAlign: "center",
   },
+
   emptyText: {
     margin: "0 0 6px 0",
     fontSize: "15px",
     fontWeight: "500",
     color: "#374151",
   },
+
   emptySubtext: {
     margin: 0,
     fontSize: "13px",
     color: "#9ca3af",
   },
+
+  classCard: {
+    backgroundColor: "#ffffff",
+    border: "1px solid #eaeaea",
+    borderRadius: "12px",
+    padding: "18px 20px",
+    marginBottom: "12px",
+  },
+
+  className: {
+    margin: "0 0 8px 0",
+    fontSize: "15px",
+    fontWeight: "600",
+  },
+
+  classInfo: {
+    margin: "4px 0",
+    fontSize: "13px",
+    color: "#6b7280",
+  },
+
   stateCenter: {
     minHeight: "80vh",
     display: "flex",
@@ -314,11 +450,13 @@ const styles = {
     justifyContent: "center",
     padding: "24px",
   },
+
   stateText: {
     marginTop: "12px",
     fontSize: "13px",
     color: "#6b7280",
   },
+
   spinner: {
     width: "28px",
     height: "28px",
@@ -327,6 +465,7 @@ const styles = {
     borderRadius: "50%",
     animation: "spin 0.8s linear infinite",
   },
+
   deactivatedCard: {
     backgroundColor: "#ffffff",
     border: "1px solid #fee2e2",
@@ -336,6 +475,7 @@ const styles = {
     textAlign: "center",
     boxShadow: "0 4px 12px rgba(220, 38, 38, 0.05)",
   },
+
   errorBanner: {
     padding: "10px 14px",
     backgroundColor: "#fffbeb",

@@ -1,11 +1,13 @@
 import { useState } from "react";
 import { supabase } from "../supabaseClient";
 
-export default function Login({ onNavigateToSignUp }) {
+export default function Login({ onNavigateToSignUp, notice = "" }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState(null);
+  const [message, setMessage] = useState(
+    notice ? { type: "success", text: notice } : null,
+  );
 
   async function handleLogin(e) {
     e.preventDefault();

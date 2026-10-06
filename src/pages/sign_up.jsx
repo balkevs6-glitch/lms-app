@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { supabase } from "../supabaseClient";
 
-export default function SignUp({ onNavigateToLogin }) {
+export default function SignUp({ onNavigateToLogin, onSignupComplete }) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -14,28 +14,40 @@ export default function SignUp({ onNavigateToLogin }) {
     setLoading(true);
     setMessage(null);
 
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          name,
-          role,
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            name,
+            role,
+          },
         },
-      },
-    });
+      });
 
-    setLoading(false);
+      if (error) {
+        setMessage({ type: "error", text: error.message });
+        return;
+      }
 
-    if (error) {
-      setMessage({ type: "error", text: error.message });
-      return;
+      if (data.session) {
+        onSignupComplete({ session: data.session });
+        return;
+      }
+
+      onSignupComplete({
+        session: null,
+        notice: "Account created. Check your email to verify your account, then log in.",
+      });
+    } catch (error) {
+      setMessage({
+        type: "error",
+        text: error.message || "Could not create your account. Please try again.",
+      });
+    } finally {
+      setLoading(false);
     }
-
-    setMessage({
-      type: "success",
-      text: "Account created! Check your email to verify your account.",
-    });
   }
 
   return (
