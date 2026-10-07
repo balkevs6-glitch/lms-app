@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { createClass } from "../services/classes";
-
+import { supabase } from "../supabaseClient";
 export default function CreateClassModal({
     userId,
     onClose,
@@ -21,6 +21,15 @@ export default function CreateClassModal({
         setLoading(true);
         setError(null);
 
+        console.log("Creating class with userId:", userId);
+        console.log("Class name:", name.trim());
+
+        const { data: authData, error: authError } =
+            await supabase.auth.getUser();
+
+        console.log("Supabase sees user:", authData.user);
+        console.log("Auth error:", authError);
+
         const { data, error } = await createClass(
             userId,
             name.trim()
@@ -29,7 +38,7 @@ export default function CreateClassModal({
         setLoading(false);
 
         if (error) {
-            console.error("Create class error:", error);
+            console.error("Create class error:", error);                
             setError(error.message);
             return;
         }

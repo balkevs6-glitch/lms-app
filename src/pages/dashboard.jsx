@@ -1,4 +1,6 @@
 import CreateClassModal from "../components/CreateClassModal";
+import JoinClassModal from "../components/JoinClassModal";
+import ClassPage from "./class_page";
 import { useEffect, useState } from "react";
 import { getUserClasses } from "../services/classes";
 import { supabase } from "../supabaseClient";
@@ -13,6 +15,8 @@ export default function Dashboard({ session }) {
   const [classesLoading, setClassesLoading] = useState(true);
   const [classesError, setClassesError] = useState(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showJoinModal, setShowJoinModal] = useState(false);
+  const [selectedClassId, setSelectedClassId] = useState(null);
 
   const userId = session?.user?.id;
 
@@ -131,6 +135,19 @@ export default function Dashboard({ session }) {
     );
   }
 
+  if (selectedClassId) {
+    return (
+      <ClassPage
+        classId={selectedClassId}
+        session={session}
+        onBack={() => {
+          setSelectedClassId(null);
+          loadClasses();
+        }}
+      />
+    );
+  }
+
   return (
     <div style={styles.container}>
       <header style={styles.header}>
@@ -189,6 +206,8 @@ export default function Dashboard({ session }) {
             onClick={() => {
               if (role === "teacher") {
                 setShowCreateModal(true);
+              } else {
+                setShowJoinModal(true);
               }
             }}
             style={styles.actionBtn}
@@ -232,11 +251,20 @@ export default function Dashboard({ session }) {
             {classes.map((membership) => (
               <div
                 key={membership.classes.id}
-                style={styles.classCard}
+                onClick={() => setSelectedClassId(membership.classes.id)}
+                style={{
+                  ...styles.classCard,
+                  cursor: "pointer",
+                }}
               >
-                <h4 style={styles.className}>
-                  {membership.classes.name}
-                </h4>
+                <div style={styles.classCardHeader}>
+                  <h4 style={styles.className}>
+                    {membership.classes.name}
+                  </h4>
+                  <span style={styles.viewClassLink}>
+                    Enter Class →
+                  </span>
+                </div>
 
                 <p style={styles.classInfo}>
                   Role: {membership.role}
@@ -265,6 +293,20 @@ export default function Dashboard({ session }) {
           }}
           onCreated={() => {
             setShowCreateModal(false);
+            loadClasses();
+          }}
+        />
+      )}
+
+      {/* Join Class Modal */}
+      {showJoinModal && role !== "teacher" && (
+        <JoinClassModal
+          userId={userId}
+          onClose={() => {
+            setShowJoinModal(false);
+          }}
+          onJoined={() => {
+            setShowJoinModal(false);
             loadClasses();
           }}
         />
@@ -428,6 +470,20 @@ const styles = {
     borderRadius: "12px",
     padding: "18px 20px",
     marginBottom: "12px",
+    transition: "border-color 0.15s ease, box-shadow 0.15s ease",
+  },
+
+  classCardHeader: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: "6px",
+  },
+
+  viewClassLink: {
+    fontSize: "12px",
+    fontWeight: "500",
+    color: "#4f46e5",
   },
 
   className: {
