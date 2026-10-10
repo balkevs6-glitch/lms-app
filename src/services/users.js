@@ -8,7 +8,7 @@ import { supabase } from "../supabaseClient";
 export async function getUserProfile(userId) {
   const { data, error } = await supabase
     .from("users")
-    .select("id, name, role, is_active")
+    .select("id, name, is_active")
     .eq("id", userId)
     .single();
 

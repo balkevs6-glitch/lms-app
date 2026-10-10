@@ -5,7 +5,6 @@ export default function SignUp({ onNavigateToLogin, onSignupComplete }) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [role, setRole] = useState("student");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState(null);
 
@@ -21,13 +20,20 @@ export default function SignUp({ onNavigateToLogin, onSignupComplete }) {
         options: {
           data: {
             name,
-            role,
           },
         },
       });
 
       if (error) {
-        setMessage({ type: "error", text: error.message });
+        // The signup trigger rejects emails that are not on member_list.
+        // Supabase wraps that as a generic "Database error saving new user".
+        const notOnList = error.message?.includes("Database error saving new user");
+        setMessage({
+          type: "error",
+          text: notOnList
+            ? "This email isn't on the member list. Ask a maintainer to add you."
+            : error.message,
+        });
         return;
       }
 
@@ -55,7 +61,7 @@ export default function SignUp({ onNavigateToLogin, onSignupComplete }) {
       <div style={styles.card}>
         <div style={styles.header}>
           <h2 style={styles.title}>Create Account</h2>
-          <p style={styles.subtitle}>Sign up to join your classes</p>
+          <p style={styles.subtitle}>Sign up to join your projects. Your email must be on the member list.</p>
         </div>
 
         {message && (
@@ -105,32 +111,6 @@ export default function SignUp({ onNavigateToLogin, onSignupComplete }) {
               minLength={6}
               style={styles.input}
             />
-          </div>
-
-          <div style={styles.field}>
-            <label style={styles.label}>Role</label>
-            <div style={styles.roleToggle}>
-              <button
-                type="button"
-                onClick={() => setRole("student")}
-                style={{
-                  ...styles.roleBtn,
-                  ...(role === "student" ? styles.roleBtnActive : {}),
-                }}
-              >
-                Student
-              </button>
-              <button
-                type="button"
-                onClick={() => setRole("teacher")}
-                style={{
-                  ...styles.roleBtn,
-                  ...(role === "teacher" ? styles.roleBtnActive : {}),
-                }}
-              >
-                Teacher
-              </button>
-            </div>
           </div>
 
           <button
@@ -241,30 +221,6 @@ const styles = {
     backgroundColor: "#ffffff",
     color: "#111827",
     transition: "border-color 0.15s ease",
-  },
-  roleToggle: {
-    display: "grid",
-    gridTemplateColumns: "1fr 1fr",
-    gap: "6px",
-    backgroundColor: "#f3f4f6",
-    padding: "4px",
-    borderRadius: "8px",
-  },
-  roleBtn: {
-    padding: "8px 0",
-    border: "none",
-    backgroundColor: "transparent",
-    borderRadius: "6px",
-    fontSize: "13px",
-    fontWeight: "500",
-    color: "#6b7280",
-    cursor: "pointer",
-    transition: "all 0.15s ease",
-  },
-  roleBtnActive: {
-    backgroundColor: "#ffffff",
-    color: "#111827",
-    boxShadow: "0 1px 3px rgba(0, 0, 0, 0.08)",
   },
   submitBtn: {
     marginTop: "8px",

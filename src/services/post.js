@@ -1,17 +1,17 @@
 import { supabase } from "../supabaseClient";
 
-export async function getClassPosts(classId) {
+export async function getProjectPosts(projectId) {
     const { data, error } = await supabase
         .from("posts")
         .select(`
             id,
-            class_id,
+            project_id,
             author_id,
             title,
             content,
             created_at
         `)
-        .eq("class_id", classId)
+        .eq("project_id", projectId)
         .order("created_at", {
             ascending: false,
         });
@@ -20,7 +20,7 @@ export async function getClassPosts(classId) {
 }
 
 export async function createPost(
-    classId,
+    projectId,
     authorId,
     title,
     content
@@ -28,7 +28,7 @@ export async function createPost(
     const { data, error } = await supabase
         .from("posts")
         .insert({
-            class_id: classId,
+            project_id: projectId,
             author_id: authorId,
             title: title,
             content: content,

@@ -39,7 +39,7 @@ export default function Login({ onNavigateToSignUp, notice = "" }) {
       <div style={styles.card}>
         <div style={styles.header}>
           <h2 style={styles.title}>Welcome Back</h2>
-          <p style={styles.subtitle}>Log in to access your classes</p>
+          <p style={styles.subtitle}>Log in to access your projects</p>
         </div>
 
         {message && (

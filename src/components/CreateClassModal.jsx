@@ -1,11 +1,7 @@
 import { useState } from "react";
 import { createClass } from "../services/classes";
-import { supabase } from "../supabaseClient";
-export default function CreateClassModal({
-    userId,
-    onClose,
-    onCreated,
-}) {
+
+export default function CreateClassModal({ onClose, onCreated, userId }) {
     const [name, setName] = useState("");
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
@@ -21,29 +17,19 @@ export default function CreateClassModal({
         setLoading(true);
         setError(null);
 
-        console.log("Creating class with userId:", userId);
-        console.log("Class name:", name.trim());
-
-        const { data: authData, error: authError } =
-            await supabase.auth.getUser();
-
-        console.log("Supabase sees user:", authData.user);
-        console.log("Auth error:", authError);
-
-        const { data, error } = await createClass(
-            userId,
-            name.trim()
-        );
+        const { data, error } = await createClass(userId, name.trim());
 
         setLoading(false);
 
         if (error) {
-            console.error("Create class error:", error);                
+            console.error("Create class error:", error);
             setError(error.message);
             return;
         }
 
-        onCreated(data);
+        if (onCreated) {
+            onCreated(data);
+        }
     }
 
     return (
@@ -52,39 +38,22 @@ export default function CreateClassModal({
                 <div style={styles.header}>
                     <div>
                         <h2 style={styles.title}>Create Class</h2>
-                        <p style={styles.subtitle}>
-                            Create a new class for your students.
-                        </p>
+                        <p style={styles.subtitle}>Create a class and share the join code with students.</p>
                     </div>
 
-                    <button
-                        type="button"
-                        onClick={onClose}
-                        style={styles.closeButton}
-                    >
-                        ×
-                    </button>
+                    <button type="button" onClick={onClose} style={styles.closeButton}>×</button>
                 </div>
 
-                {error && (
-                    <div style={styles.error}>
-                        {error}
-                    </div>
-                )}
+                {error && <div style={styles.error}>{error}</div>}
 
                 <form onSubmit={handleSubmit}>
                     <div style={styles.field}>
-                        <label style={styles.label}>
-                            Class name
-                        </label>
-
+                        <label style={styles.label}>Class name</label>
                         <input
                             type="text"
-                            placeholder="e.g. Web Development"
+                            placeholder="e.g. Algebra 101"
                             value={name}
-                            onChange={(e) =>
-                                setName(e.target.value)
-                            }
+                            onChange={(e) => setName(e.target.value)}
                             disabled={loading}
                             style={styles.input}
                             autoFocus
@@ -92,23 +61,9 @@ export default function CreateClassModal({
                     </div>
 
                     <div style={styles.actions}>
-                        <button
-                            type="button"
-                            onClick={onClose}
-                            disabled={loading}
-                            style={styles.cancelButton}
-                        >
-                            Cancel
-                        </button>
-
-                        <button
-                            type="submit"
-                            disabled={loading}
-                            style={styles.createButton}
-                        >
-                            {loading
-                                ? "Creating..."
-                                : "Create Class"}
+                        <button type="button" onClick={onClose} disabled={loading} style={styles.cancelButton}>Cancel</button>
+                        <button type="submit" disabled={loading} style={styles.createButton}>
+                            {loading ? "Creating..." : "Create Class"}
                         </button>
                     </div>
                 </form>
@@ -128,7 +83,6 @@ const styles = {
         padding: "20px",
         zIndex: 1000,
     },
-
     modal: {
         width: "100%",
         maxWidth: "420px",
@@ -137,26 +91,22 @@ const styles = {
         padding: "24px",
         boxShadow: "0 20px 50px rgba(0, 0, 0, 0.15)",
     },
-
     header: {
         display: "flex",
         justifyContent: "space-between",
         alignItems: "flex-start",
         marginBottom: "24px",
     },
-
     title: {
         margin: 0,
         fontSize: "18px",
         fontWeight: "600",
     },
-
     subtitle: {
         margin: "5px 0 0",
         fontSize: "13px",
         color: "#6b7280",
     },
-
     closeButton: {
         border: "none",
         background: "transparent",
@@ -165,7 +115,6 @@ const styles = {
         cursor: "pointer",
         lineHeight: 1,
     },
-
     error: {
         padding: "10px 12px",
         marginBottom: "16px",
@@ -175,19 +124,16 @@ const styles = {
         color: "#dc2626",
         fontSize: "13px",
     },
-
     field: {
         display: "flex",
         flexDirection: "column",
         gap: "6px",
     },
-
     label: {
         fontSize: "12px",
         fontWeight: "500",
         color: "#374151",
     },
-
     input: {
         padding: "10px 12px",
         border: "1px solid #e5e7eb",
@@ -195,14 +141,12 @@ const styles = {
         fontSize: "14px",
         outline: "none",
     },
-
     actions: {
         display: "flex",
         justifyContent: "flex-end",
         gap: "8px",
         marginTop: "24px",
     },
-
     cancelButton: {
         padding: "9px 14px",
         border: "1px solid #e5e7eb",
@@ -211,7 +155,6 @@ const styles = {
         borderRadius: "8px",
         cursor: "pointer",
     },
-
     createButton: {
         padding: "9px 14px",
         border: "none",
