@@ -1,10 +1,10 @@
-import CreateClassModal from "../components/CreateClassModal";
-import JoinClassModal from "../components/JoinClassModal";
+import CreateProjectModal from "../features/projects/CreateProjectModal";
+import JoinProjectModal from "../features/projects/JoinProjectModal";
 import ProjectPage from "./project_page";
 import { useEffect, useState } from "react";
-import { getUserProjects } from "../services/projects";
+import { getUserProjects } from "../features/projects/projects";
 import { supabase } from "../supabaseClient";
-import { getUserProfile } from "../services/users";
+import { getUserProfile } from "../features/auth/users";
 
 export default function Dashboard({ session }) {
   const [profile, setProfile] = useState(null);
@@ -214,7 +214,7 @@ export default function Dashboard({ session }) {
       </main>
 
       {showCreateModal && (
-        <CreateClassModal
+        <CreateProjectModal
           onClose={() => setShowCreateModal(false)}
           onCreated={() => {
             setShowCreateModal(false);
@@ -224,7 +224,7 @@ export default function Dashboard({ session }) {
       )}
 
       {showJoinModal && (
-        <JoinClassModal
+        <JoinProjectModal
           onClose={() => setShowJoinModal(false)}
           onJoined={() => {
             setShowJoinModal(false);
@@ -442,4 +442,3 @@ const styles = {
     textAlign: "center",
   },
 };
-
