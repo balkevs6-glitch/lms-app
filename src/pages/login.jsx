@@ -4,6 +4,7 @@ import { supabase } from "../supabaseClient";
 export default function Login({ onNavigateToSignUp, notice = "" }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState(
     notice ? { type: "success", text: notice } : null,
@@ -68,14 +69,23 @@ export default function Login({ onNavigateToSignUp, notice = "" }) {
 
           <div style={styles.field}>
             <label style={styles.label}>Password</label>
-            <input
-              type="password"
-              placeholder="••••••••"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              style={styles.input}
-            />
+            <div style={styles.passwordWrapper}>
+              <input
+                type={showPassword ? "text" : "password"}
+                placeholder="••••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                style={{ ...styles.input, paddingRight: "65px" }}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                style={styles.toggleBtn}
+              >
+                {showPassword ? "Hide" : "Show"}
+              </button>
+            </div>
           </div>
 
           <button
@@ -178,6 +188,7 @@ const styles = {
     letterSpacing: "-0.01em",
   },
   input: {
+    width: "100%",
     padding: "10px 12px",
     fontSize: "14px",
     border: "1px solid #e5e7eb",
@@ -185,7 +196,25 @@ const styles = {
     outline: "none",
     backgroundColor: "#ffffff",
     color: "#111827",
+    boxSizing: "border-box",
     transition: "border-color 0.15s ease",
+  },
+  passwordWrapper: {
+    position: "relative",
+    display: "flex",
+    alignItems: "center",
+    width: "100%",
+  },
+  toggleBtn: {
+    position: "absolute",
+    right: "10px",
+    background: "none",
+    border: "none",
+    color: "#6b7280",
+    fontSize: "12px",
+    fontWeight: "500",
+    cursor: "pointer",
+    padding: "4px 6px",
   },
   submitBtn: {
     marginTop: "8px",
