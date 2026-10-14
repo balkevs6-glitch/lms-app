@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { supabase } from "../supabaseClient";
 
-export default function Login({ onNavigateToSignUp, notice = "" }) {
+export default function Login({ onNavigateToSignUp, onNavigateToForgot, notice = "" }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -15,7 +15,7 @@ export default function Login({ onNavigateToSignUp, notice = "" }) {
     setLoading(true);
     setMessage(null);
 
-    const { data, error } = await supabase.auth.signInWithPassword({
+    const { error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
@@ -31,8 +31,7 @@ export default function Login({ onNavigateToSignUp, notice = "" }) {
       type: "success",
       text: "Logged in successfully!",
     });
-    console.log("Logged in user:", data.user);
-    console.log("Session:", data.session);
+
   }
 
   return (
@@ -65,6 +64,17 @@ export default function Login({ onNavigateToSignUp, notice = "" }) {
               required
               style={styles.input}
             />
+            {onNavigateToForgot && (
+              <div style={styles.forgotRow}>
+                <button
+                  type="button"
+                  onClick={onNavigateToForgot}
+                  style={styles.forgotBtn}
+                >
+                  Forgot password?
+                </button>
+              </div>
+            )}
           </div>
 
           <div style={styles.field}>
@@ -180,6 +190,19 @@ const styles = {
     display: "flex",
     flexDirection: "column",
     gap: "6px",
+  },
+  forgotRow: {
+    display: "flex",
+    justifyContent: "flex-end",
+  },
+  forgotBtn: {
+    background: "none",
+    border: "none",
+    color: "#6b7280",
+    cursor: "pointer",
+    padding: 0,
+    fontSize: "12px",
+    textDecoration: "underline",
   },
   label: {
     fontSize: "12px",

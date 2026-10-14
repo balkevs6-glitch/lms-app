@@ -1,8 +1,8 @@
 import CreateProjectModal from "../features/projects/CreateProjectModal";
 import JoinProjectModal from "../features/projects/JoinProjectModal";
 import ProjectPage from "./project_page";
-import { useEffect, useState } from "react";
-import { getUserProjects } from "../features/projects/projects";
+import { useEffect, useRef, useState } from "react";
+import { getUserProjects, renameProject, deleteProject, leaveProject } from "../features/projects/projects";
 import { supabase } from "../supabaseClient";
 import { getUserProfile } from "../features/auth/users";
 
@@ -17,6 +17,15 @@ export default function Dashboard({ session }) {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showJoinModal, setShowJoinModal] = useState(false);
   const [selectedProjectId, setSelectedProjectId] = useState(null);
+
+  // Three-dot menu state
+  const [openMenuId, setOpenMenuId] = useState(null);
+  const menuRef = useRef(null);
+
+  // Rename inline state
+  const [renamingId, setRenamingId] = useState(null);
+  const [renameValue, setRenameValue] = useState("");
+  const [actionLoading, setActionLoading] = useState(false);
 
   const userId = session?.user?.id;
 
@@ -67,6 +76,48 @@ export default function Dashboard({ session }) {
 
   async function handleSignOut() {
     await supabase.auth.signOut();
+  }
+
+  // Close menu and cancel rename on outside click
+  useEffect(() => {
+    function handleClickOutside(e) {
+      if (menuRef.current && !menuRef.current.contains(e.target)) {
+        setOpenMenuId(null);
+        setRenamingId(null);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  async function handleRename(projectId, currentName) {
+    const trimmed = renameValue.trim();
+    if (!trimmed) return;
+    if (trimmed === currentName) { setRenamingId(null); return; }
+    setActionLoading(true);
+    const { error: err } = await renameProject(projectId, trimmed);
+    setActionLoading(false);
+    if (err) { alert("Could not rename: " + (err.message || err)); return; }
+    setRenamingId(null);
+    loadProjects();
+  }
+
+  async function handleDelete(projectId, projectName) {
+    if (!window.confirm(`Permanently delete "${projectName}" for everyone? This cannot be undone.`)) return;
+    setActionLoading(true);
+    const { error: err } = await deleteProject(projectId);
+    setActionLoading(false);
+    if (err) { alert("Could not delete: " + (err.message || err)); return; }
+    loadProjects();
+  }
+
+  async function handleLeave(projectId, projectName) {
+    if (!window.confirm(`Leave "${projectName}"? You can rejoin later with the join code.`)) return;
+    setActionLoading(true);
+    const { error: err } = await leaveProject(projectId);
+    setActionLoading(false);
+    if (err) { alert("Could not leave: " + (err.message || err)); return; }
+    loadProjects();
   }
 
   const name =
@@ -188,27 +239,105 @@ export default function Dashboard({ session }) {
             </p>
           </div>
         ) : (
-          <div>
-            {projects.map((membership) => (
-              <div
-                key={membership.projects.id}
-                onClick={() => setSelectedProjectId(membership.projects.id)}
-                style={{ ...styles.projectCard, cursor: "pointer" }}
-              >
-                <div style={styles.projectCardHeader}>
-                  <h4 style={styles.projectName}>{membership.projects.name}</h4>
-                  <span style={styles.viewProjectLink}>Enter Project ?</span>
+          <div ref={menuRef}>
+            {projects.map((membership) => {
+              const proj = membership.projects;
+              const isMaintainer = membership.role === "maintainer";
+              const isMenuOpen = openMenuId === proj.id;
+              const isRenaming = renamingId === proj.id;
+
+              return (
+                <div
+                  key={proj.id}
+                  style={{ ...styles.projectCard, cursor: "pointer", position: "relative" }}
+                >
+                  {/* Card click area */}
+                  <div onClick={() => setSelectedProjectId(proj.id)}>
+                    <div style={styles.projectCardHeader}>
+                      {isRenaming ? (
+                        <input
+                          autoFocus
+                          value={renameValue}
+                          disabled={actionLoading}
+                          maxLength={80}
+                          onClick={(e) => e.stopPropagation()}
+                          onChange={(e) => setRenameValue(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") handleRename(proj.id, proj.name);
+                            if (e.key === "Escape") setRenamingId(null);
+                          }}
+                          style={styles.renameInput}
+                        />
+                      ) : (
+                        <h4 style={styles.projectName}>{proj.name}</h4>
+                      )}
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        {/* Three-dot button */}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setOpenMenuId(isMenuOpen ? null : proj.id);
+                          }}
+                          style={styles.dotMenuBtn}
+                          title="More options"
+                        >
+                          ⋯
+                        </button>
+                      </div>
+                    </div>
+
+                    <p style={styles.projectInfo}>Role: {membership.role}</p>
+
+                    {isMaintainer && (
+                      <p style={styles.projectInfo}>
+                        Join Code: <strong>{proj.join_code}</strong>
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Dropdown menu */}
+                  {isMenuOpen && (
+                    <div style={styles.dropdownMenu} onClick={(e) => e.stopPropagation()}>
+                      {isMaintainer && (
+                        <button
+                          style={styles.dropdownItem}
+                          disabled={actionLoading}
+                          onClick={() => {
+                            setRenameValue(proj.name);
+                            setRenamingId(proj.id);
+                            setOpenMenuId(null);
+                          }}
+                        >
+                          ✏️ Rename Project
+                        </button>
+                      )}
+                      {isMaintainer && (
+                        <button
+                          style={{ ...styles.dropdownItem, ...styles.dropdownDanger }}
+                          disabled={actionLoading}
+                          onClick={() => {
+                            setOpenMenuId(null);
+                            handleDelete(proj.id, proj.name);
+                          }}
+                        >
+                          🗑️ Delete Project
+                        </button>
+                      )}
+                      <button
+                        style={{ ...styles.dropdownItem, ...styles.dropdownDanger }}
+                        disabled={actionLoading}
+                        onClick={() => {
+                          setOpenMenuId(null);
+                          handleLeave(proj.id, proj.name);
+                        }}
+                      >
+                        🚪 Leave Project
+                      </button>
+                    </div>
+                  )}
                 </div>
-
-                <p style={styles.projectInfo}>Role: {membership.role}</p>
-
-                {membership.role === "maintainer" && (
-                  <p style={styles.projectInfo}>
-                    Join Code: <strong>{membership.projects.join_code}</strong>
-                  </p>
-                )}
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </main>
@@ -400,6 +529,53 @@ const styles = {
     margin: "8px 0 0",
     fontSize: "13px",
     color: "#6b7280",
+  },
+  dotMenuBtn: {
+    background: "none",
+    border: "1px solid transparent",
+    borderRadius: "6px",
+    cursor: "pointer",
+    fontSize: "18px",
+    lineHeight: 1,
+    padding: "2px 6px",
+    color: "#6b7280",
+    transition: "background 0.15s",
+  },
+  dropdownMenu: {
+    position: "absolute",
+    top: "12px",
+    right: "12px",
+    backgroundColor: "#ffffff",
+    border: "1px solid #e5e7eb",
+    borderRadius: "10px",
+    boxShadow: "0 4px 16px rgba(0,0,0,0.10)",
+    zIndex: 50,
+    minWidth: "170px",
+    padding: "6px 0",
+    display: "flex",
+    flexDirection: "column",
+  },
+  dropdownItem: {
+    background: "none",
+    border: "none",
+    textAlign: "left",
+    padding: "9px 16px",
+    fontSize: "13px",
+    fontWeight: "500",
+    cursor: "pointer",
+    color: "#111827",
+  },
+  dropdownDanger: {
+    color: "#dc2626",
+  },
+  renameInput: {
+    fontSize: "15px",
+    fontWeight: "600",
+    padding: "4px 8px",
+    border: "1px solid #d1d5db",
+    borderRadius: "6px",
+    outline: "none",
+    flex: 1,
   },
   errorBanner: {
     marginBottom: "16px",
