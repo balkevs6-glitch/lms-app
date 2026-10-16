@@ -130,7 +130,10 @@ export default function Dashboard({ session }) {
     "User";
 
   const avatarUrl = profile?.avatar_url || null;
-  const isActive = profile ? profile.is_active : true;
+  // Only an explicit false value means the account was deactivated.
+  // Profile updates can temporarily omit is_active when the initial profile
+  // query failed, and that must not lock the user out.
+  const isActive = profile?.is_active !== false;
 
   if (loading) {
     return (

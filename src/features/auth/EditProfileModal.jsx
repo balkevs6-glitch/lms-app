@@ -9,7 +9,7 @@ export default function EditProfileModal({ userId, currentName, currentAvatarUrl
     const [error, setError] = useState(null);
     const fileInputRef = useRef(null);
 
-    function handleFileChange(e) {
+    function handleFileChange(e) {  
         const file = e.target.files[0];
         if (!file) return;
         if (!file.type.startsWith("image/")) { setError("Please pick an image file."); return; }
