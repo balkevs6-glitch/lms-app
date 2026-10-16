@@ -49,10 +49,24 @@ export default function ChatWindow({ projectId, userId, title, emptyText = "No m
     return <div style={styles.card}>
         <header style={styles.header}><h3>{title}</h3><span>{status === "SUBSCRIBED" ? "● Live" : "○ Connecting..."}</span></header>
         <div ref={listRef} style={styles.list}>{loading ? <p>Loading messages...</p> : messages.length === 0 ? <p>{emptyText}</p> :
-            messages.map((message) => <div key={message.id} style={{ ...styles.row, alignItems: message.sender_id === userId ? "flex-end" : "flex-start" }}>
-                <small>{message.sender_id === userId ? "You" : message.users?.name || "Unknown"} · {new Date(message.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</small>
-                <div style={{ ...styles.bubble, backgroundColor: message.sender_id === userId ? "#111827" : "#fff", color: message.sender_id === userId ? "#fff" : "#111827" }}>{message.content}</div>
-            </div>)}</div>
+        messages.map((message) => {
+                const ts = new Date(message.created_at);
+                const now = new Date();
+                const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                const startOfYesterday = new Date(startOfToday - 864e5);
+                const startOfWeek = new Date(startOfToday - startOfToday.getDay() * 864e5);
+                const time = ts.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+                let dateLabel;
+                if (ts >= startOfToday) dateLabel = "Today";
+                else if (ts >= startOfYesterday) dateLabel = "Yesterday";
+                else if (ts >= startOfWeek) dateLabel = ts.toLocaleDateString([], { weekday: "long" });
+                else dateLabel = ts.toLocaleDateString([], { month: "short", day: "numeric" });
+
+                return <div key={message.id} style={{ ...styles.row, alignItems: message.sender_id === userId ? "flex-end" : "flex-start" }}>
+                    <small>{message.sender_id === userId ? "You" : message.users?.name || "Unknown"} · {dateLabel} {time}</small>
+                    <div style={{ ...styles.bubble, backgroundColor: message.sender_id === userId ? "#111827" : "#fff", color: message.sender_id === userId ? "#fff" : "#111827" }}>{message.content}</div>
+                </div>;
+            })}</div>
         {error && <div style={styles.error}>{error}</div>}
         <form onSubmit={submit} style={styles.form}><input value={draft} onChange={(event) => setDraft(event.target.value)} placeholder="Write a message..." maxLength={2000} disabled={sending} style={styles.input} /><button disabled={sending || !draft.trim()}>Send</button></form>
     </div>;

@@ -1,6 +1,7 @@
 import CreateProjectModal from "../features/projects/CreateProjectModal";
 import JoinProjectModal from "../features/projects/JoinProjectModal";
 import ProjectPage from "./project_page";
+import EditProfileModal from "../features/auth/EditProfileModal";
 import { useEffect, useRef, useState } from "react";
 import { getUserProjects, renameProject, deleteProject, leaveProject } from "../features/projects/projects";
 import { supabase } from "../supabaseClient";
@@ -26,6 +27,9 @@ export default function Dashboard({ session }) {
   const [renamingId, setRenamingId] = useState(null);
   const [renameValue, setRenameValue] = useState("");
   const [actionLoading, setActionLoading] = useState(false);
+
+  // Edit profile modal
+  const [showEditProfile, setShowEditProfile] = useState(false);
 
   const userId = session?.user?.id;
 
@@ -78,12 +82,11 @@ export default function Dashboard({ session }) {
     await supabase.auth.signOut();
   }
 
-  // Close menu and cancel rename on outside click
+  // Close menu on outside click
   useEffect(() => {
     function handleClickOutside(e) {
       if (menuRef.current && !menuRef.current.contains(e.target)) {
         setOpenMenuId(null);
-        setRenamingId(null);
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
@@ -126,6 +129,7 @@ export default function Dashboard({ session }) {
     session?.user?.email?.split("@")[0] ||
     "User";
 
+  const avatarUrl = profile?.avatar_url || null;
   const isActive = profile ? profile.is_active : true;
 
   if (loading) {
@@ -178,6 +182,7 @@ export default function Dashboard({ session }) {
     <div style={styles.container}>
       <header style={styles.header}>
         <div style={styles.brand}>
+          {/* App logo */}
           <div style={styles.logoMark}>S</div>
 
           <div>
@@ -186,9 +191,23 @@ export default function Dashboard({ session }) {
           </div>
         </div>
 
-        <button onClick={handleSignOut} style={styles.signOutBtn}>
-          Sign Out
-        </button>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          {/* Clickable avatar → opens Edit Profile */}
+          <button
+            onClick={() => setShowEditProfile(true)}
+            style={styles.avatarBtn}
+            title="Edit Profile"
+          >
+            {avatarUrl
+              ? <img src={avatarUrl} alt={name} style={styles.avatarImg} />
+              : <div style={styles.avatarInitial}>{name[0]?.toUpperCase() || "?"}</div>
+            }
+          </button>
+
+          <button onClick={handleSignOut} style={styles.signOutBtn}>
+            Sign Out
+          </button>
+        </div>
       </header>
 
       <main style={styles.main}>
@@ -361,6 +380,18 @@ export default function Dashboard({ session }) {
           }}
         />
       )}
+
+      {showEditProfile && (
+        <EditProfileModal
+          userId={userId}
+          currentName={name}
+          currentAvatarUrl={avatarUrl}
+          onClose={() => setShowEditProfile(false)}
+          onSaved={(updated) => {
+            setProfile((prev) => ({ ...prev, ...updated }));
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -384,6 +415,36 @@ const styles = {
     display: "flex",
     alignItems: "center",
     gap: "12px",
+  },
+  avatarBtn: {
+    width: "36px",
+    height: "36px",
+    borderRadius: "50%",
+    border: "2px solid #e5e7eb",
+    padding: 0,
+    cursor: "pointer",
+    background: "none",
+    overflow: "hidden",
+    flexShrink: 0,
+  },
+  avatarImg: {
+    width: "100%",
+    height: "100%",
+    objectFit: "cover",
+    borderRadius: "50%",
+    display: "block",
+  },
+  avatarInitial: {
+    width: "100%",
+    height: "100%",
+    backgroundColor: "#111827",
+    color: "#fff",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontWeight: "700",
+    fontSize: "14px",
+    borderRadius: "50%",
   },
   logoMark: {
     width: "36px",
