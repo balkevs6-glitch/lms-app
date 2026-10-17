@@ -26,10 +26,19 @@ export async function uploadAvatar(userId, file) {
     const { data } = supabase.storage.from("avatars").getPublicUrl(path);
     const avatarUrl = data.publicUrl + "?t=" + Date.now(); // cache-bust
 
-    const { error: updateError } = await supabase
+    const { data: updatedUser, error: updateError } = await supabase
         .from("users")
         .update({ avatar_url: avatarUrl })
-        .eq("id", userId);
+        .eq("id", userId)
+        .select("id, avatar_url")
+        .maybeSingle();
 
-    return { error: updateError, url: avatarUrl };
+    if (updateError) return { error: updateError };
+    if (!updatedUser) {
+        return {
+            error: new Error("Avatar was uploaded, but your profile could not be updated."),
+        };
+    }
+
+    return { error: null, url: updatedUser.avatar_url };
 }
