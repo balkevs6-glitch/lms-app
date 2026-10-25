@@ -3,6 +3,7 @@ import { getProject } from "../features/projects/projects";
 import ProjectHeader from "../features/projects/ProjectHeader";
 import FeedTab from "../features/feed/FeedTab";
 import ChatWindow from "../features/chat/ChatWindow";
+import FilesTab from "../features/files/FilesTab";
 
 const tabs = [
     { id: "feed", label: "Feed" },
@@ -44,9 +45,10 @@ export default function ProjectPage({ projectId, session, onBack }) {
             style={{ ...styles.tab, ...(activeTab === tab.id ? styles.activeTab : {}) }}>{tab.label}</button>)}</nav>
         <main style={styles.main}>
             {activeTab === "feed" && <FeedTab projectId={projectId} userId={userId} canPost={membership?.role === "maintainer"} />}
+            {activeTab === "files" && <FilesTab projectId={projectId} userId={userId} membership={membership} />}
             {activeTab === "chat" && <ChatWindow projectId={projectId} userId={userId}
                 title={`${project?.name || "Project"} chat`} emptyText="No messages yet. Start the conversation with your project members!" />}
-            {activeTab !== "feed" && activeTab !== "chat" && <div style={styles.empty}>
+            {activeTab !== "feed" && activeTab !== "files" && activeTab !== "chat" && <div style={styles.empty}>
                 <p>{tabs.find((tab) => tab.id === activeTab)?.label} is coming soon.</p>
                 <small>{tabs.find((tab) => tab.id === activeTab)?.soon}</small>
             </div>}
