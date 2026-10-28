@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
-import { getProjectMembers } from "./projects";
+import { getProjectMembers, removeProjectMember } from "./projects";
 
-export default function ProjectMembersModal({ projectId, onClose }) {
+export default function ProjectMembersModal({ projectId, currentUserId, canManageMembers, onClose }) {
     const [members, setMembers] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
+    const [removingId, setRemovingId] = useState(null);
 
     useEffect(() => {
         let active = true;
@@ -27,6 +28,24 @@ export default function ProjectMembersModal({ projectId, onClose }) {
             active = false;
         };
     }, [projectId]);
+
+    async function handleRemove(member) {
+        const memberName = member.users?.name || "this contributor";
+        if (!window.confirm(`Remove ${memberName} from this project?`)) return;
+
+        setRemovingId(member.users?.id);
+        setError("");
+        const { error: removeError } = await removeProjectMember(projectId, member.users?.id);
+        setRemovingId(null);
+
+        if (removeError) {
+            console.error("Could not remove project member:", removeError);
+            setError(removeError.message || "Could not remove this member.");
+            return;
+        }
+
+        setMembers((current) => current.filter((item) => item.users?.id !== member.users?.id));
+    }
 
     return (
         <div style={styles.overlay} onClick={onClose}>
@@ -67,6 +86,18 @@ export default function ProjectMembersModal({ projectId, onClose }) {
                                             </span>
                                         )}
                                     </div>
+                                    {canManageMembers &&
+                                        member?.id !== currentUserId &&
+                                        membership.role === "contributor" && (
+                                            <button
+                                                type="button"
+                                                onClick={() => handleRemove(membership)}
+                                                disabled={removingId === member.id}
+                                                style={styles.removeButton}
+                                            >
+                                                {removingId === member.id ? "Removing..." : "Remove"}
+                                            </button>
+                                        )}
                                 </div>
                             );
                         })}
@@ -110,4 +141,14 @@ const styles = {
     detail: { color: "#6b7280", fontSize: 12 },
     status: { color: "#6b7280", fontSize: 14 },
     error: { color: "#b91c1c", fontSize: 14 },
+    removeButton: {
+        marginLeft: "auto",
+        padding: "7px 10px",
+        border: "1px solid #fecaca",
+        borderRadius: 7,
+        backgroundColor: "#fff",
+        color: "#b91c1c",
+        fontSize: 12,
+        cursor: "pointer",
+    },
 };

@@ -3,7 +3,7 @@ import Login from "./pages/login";
 import SignUp from "./pages/sign_up";
 import Dashboard from "./pages/dashboard";
 import ForgotPassword from "./pages/forgot_password";
-import ResetPassword from "./pages/reset_pasword";
+import ResetPassword from "./pages/reset_password";
 import { supabase } from "./supabaseClient";
 
 // A refresh during recovery must not drop the person onto the dashboard,

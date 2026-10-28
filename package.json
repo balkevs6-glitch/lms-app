@@ -8,6 +8,8 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.117.2",
+    "dompurify": "^3.4.17",
+    "mammoth": "^1.13.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0"
   },

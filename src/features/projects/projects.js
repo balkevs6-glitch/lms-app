@@ -26,11 +26,29 @@ export async function getProject(projectId, userId) {
 }
 
 export async function getProjectMembers(projectId) {
-    return supabase
-        .from("project_members")
-        .select("role, joined_at, users(id, name, avatar_url, created_at)")
-        .eq("project_id", projectId)
-        .order("joined_at", { ascending: true });
+    const { data, error } = await supabase.rpc("get_project_members", {
+        p_project_id: projectId,
+    });
+
+    return {
+        data: (data || []).map((member) => ({
+            role: member.member_role,
+            joined_at: member.member_joined_at,
+            users: {
+                id: member.user_id,
+                name: member.member_name,
+                avatar_url: member.member_avatar_url,
+            },
+        })),
+        error,
+    };
+}
+
+export async function removeProjectMember(projectId, userId) {
+    return supabase.rpc("remove_project_member", {
+        p_project_id: projectId,
+        p_user_id: userId,
+    });
 }
 
 export async function createProject(name, description = null) {

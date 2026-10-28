@@ -4,12 +4,12 @@ This file gives context for AI-assisted frontend work on this project. Read this
 
 ## Project Summary
 
-A school platform (Discord-inspired) where teachers/students can:
+A private project platform where maintainers/contributors can:
 
-- Create/join classes
-- Post announcements/assignments (Feed)
-- Upload & organize files in folders
-- Chat in real time per class
+- Create/join projects
+- Post project updates (Feed)
+- Upload & organize project files in folders
+- Chat in real time per project
 - Start a video call via an embedded Jitsi Meet room
 
 Student solo project, built with heavy AI assistance + manual review. Priority: working features over polish, but code should stay clean enough to actually understand and extend.
@@ -25,8 +25,8 @@ Student solo project, built with heavy AI assistance + manual review. Priority: 
 
 ## Frontend Architecture Rules
 
-1. **Supabase client talks directly to the DB** for simple reads/writes (list classes, read posts, list files). Only go through the Express backend for: joining a class by code, admin-only actions.
-2. **Auth state** comes from Supabase Auth (`supabase.auth.getUser()` / `onAuthStateChange`). Wrap the app in an Auth context/provider so any page can check `user` and `role` (student/teacher).
+1. **Supabase client talks directly to the DB** for simple reads/writes (list projects, read posts, list files). Use database functions for protected project actions such as joining by code.
+2. **Auth state** comes from Supabase Auth (`supabase.auth.getUser()` / `onAuthStateChange`). Project roles come from `project_members` and are scoped to each project.
 3. **Never expose the Supabase `service_role` key in frontend code.** Only the public `anon` key belongs in React.
 4. **Data fetching:** use simple hooks (`useEffect` + `useState`) or a lightweight data-fetching lib if introduced later (e.g. React Query) — don't over-engineer state management for a project this size. No Redux.
 5. **Realtime chat:** subscribe to Supabase Realtime channels per class, unsubscribe on unmount.
@@ -36,9 +36,9 @@ Student solo project, built with heavy AI assistance + manual review. Priority: 
 | Route               | Purpose                                             |
 | ------------------- | --------------------------------------------------- |
 | `/login`, `/signup` | Auth                                                |
-| `/dashboard`        | List of classes (join or create)                    |
-| `/class/:id`        | Class page — Feed / Files / Chat tabs + Call button |
-| `/class/:id/files`  | Folder browser + upload                             |
+| `/dashboard`        | List of projects (join or create)                    |
+| `/project/:id`      | Project page — Feed / Files / Chat tabs + Call button |
+| `/project/:id/files`| Folder browser + upload                             |
 
 ## Core Components (suggested)
 
@@ -53,18 +53,17 @@ Student solo project, built with heavy AI assistance + manual review. Priority: 
 ## Database Tables (for reference — don't invent new fields without checking this)
 
 - `users` — id, name, email, role, avatar
-- `classes` — id, name, subject, teacher_id, join_code
-- `class_members` — class_id, user_id, role
-- `posts` — id, class_id, author_id, title, content, created_at
-- `files` — id, class_id, uploaded_by, folder_id, file_url, filename, created_at
-- `folders` — id, class_id, name, parent_folder_id
-- `messages` — id, class_id, sender_id, content, created_at
+- `projects` — id, name, description, join_code, created_by
+- `project_members` — project_id, user_id, role
+- `posts` — id, project_id, author_id, title, content, created_at
+- Project files and folders — stored under the project ID in Supabase Storage
+- `messages` — id, project_id, sender_id, content, created_at
 
 ## Conventions
 
 - Functional components, hooks only.
 - One component per file, matching filename.
-- Keep Supabase queries in a small `lib/` or `services/` folder (e.g. `services/classes.js`, `services/files.js`) instead of inline in components — makes review easier and keeps components clean.
+- Supabase queries live in the feature’s own file, like `features/files/files.js`. Don’t create a separate services folder.
 - Handle loading and error states explicitly on every data fetch (no silent failures).
 - File/folder paths in Supabase Storage follow `class_id/folder_path/filename` so storage RLS policies can check class membership.
 

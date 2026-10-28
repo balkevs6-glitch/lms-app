@@ -18,7 +18,14 @@ export default function ProjectHeader({ projectId, project, membership, onBack, 
                 Members
             </button>
         </header>
-        {showMembers && <ProjectMembersModal projectId={projectId} onClose={() => setShowMembers(false)} />}
+        {showMembers && (
+            <ProjectMembersModal
+                projectId={projectId}
+                currentUserId={membership?.user_id}
+                canManageMembers={membership?.role === "maintainer"}
+                onClose={() => setShowMembers(false)}
+            />
+        )}
     </>;
 }
 

@@ -139,3 +139,63 @@ export async function downloadProjectFile(projectId, currentPath, fileName) {
     return { error: null };
 }
 
+export async function openProjectFile(projectId, currentPath, fileName) {
+    const path = getFullPath(projectId, currentPath, fileName);
+    const { data, error } = await supabase.storage
+        .from(BUCKET)
+        .createSignedUrl(path, 60 * 10);
+
+    if (error) {
+        console.error("Could not open file:", error);
+        return { error };
+    }
+
+    const previewWindow = window.open(data.signedUrl, "_blank", "noopener,noreferrer");
+    if (!previewWindow) {
+        return { error: new Error("The browser blocked the preview tab. Please allow pop-ups for this site.") };
+    }
+
+    return { error: null };
+}
+
+export async function readProjectTextFile(projectId, currentPath, fileName) {
+    const path = getFullPath(projectId, currentPath, fileName);
+    const { data: signedUrl, error: signedUrlError } = await supabase.storage
+        .from(BUCKET)
+        .createSignedUrl(path, 60 * 10);
+
+    if (signedUrlError) {
+        return { data: null, error: signedUrlError };
+    }
+
+    try {
+        const response = await fetch(signedUrl.signedUrl);
+        if (!response.ok) {
+            return { data: null, error: new Error(`Could not read file (${response.status}).`) };
+        }
+        return { data: await response.text(), error: null };
+    } catch (error) {
+        return { data: null, error };
+    }
+}
+
+export async function readProjectDocxFile(projectId, currentPath, fileName) {
+    const path = getFullPath(projectId, currentPath, fileName);
+    const { data: signedUrl, error: signedUrlError } = await supabase.storage
+        .from(BUCKET)
+        .createSignedUrl(path, 60 * 10);
+
+    if (signedUrlError) {
+        return { data: null, error: signedUrlError };
+    }
+
+    try {
+        const response = await fetch(signedUrl.signedUrl);
+        if (!response.ok) {
+            return { data: null, error: new Error(`Could not read file (${response.status}).`) };
+        }
+        return { data: await response.arrayBuffer(), error: null };
+    } catch (error) {
+        return { data: null, error };
+    }
+}

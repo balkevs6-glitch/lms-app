@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from "react";
+import mammoth from "mammoth/mammoth.browser";
+import DOMPurify from "dompurify";
 import {
     listProjectFiles,
     uploadProjectFile,
@@ -6,6 +8,9 @@ import {
     renameProjectItem,
     deleteProjectItem,
     downloadProjectFile,
+    openProjectFile,
+    readProjectTextFile,
+    readProjectDocxFile,
 } from "./files";
 
 export default function FilesTab({ projectId, userId, membership }) {
@@ -17,6 +22,9 @@ export default function FilesTab({ projectId, userId, membership }) {
     const [uploadProgress, setUploadProgress] = useState(null);
     const [actionLoading, setActionLoading] = useState(false);
     const [error, setError] = useState(null);
+    const [textPreview, setTextPreview] = useState(null);
+    const [docxPreview, setDocxPreview] = useState(null);
+    const [textPreviewLoading, setTextPreviewLoading] = useState(false);
 
     const [searchQuery, setSearchQuery] = useState("");
     const [showSearch, setShowSearch] = useState(false);
@@ -174,6 +182,67 @@ export default function FilesTab({ projectId, userId, membership }) {
     async function handleDownload(fileName) {
         setActiveMenuId(null);
         await downloadProjectFile(projectId, currentFolder, fileName);
+    }
+
+    async function handleOpenFile(item) {
+        setActiveMenuId(null);
+        if (/\.docx$/i.test(item.name)) {
+            setTextPreviewLoading(true);
+            setError(null);
+            const { data, error: readError } = await readProjectDocxFile(
+                projectId,
+                currentFolder,
+                item.name
+            );
+            if (readError) {
+                setTextPreviewLoading(false);
+                console.error("Could not read Word document:", readError);
+                setError(readError.message || "Could not read this Word document.");
+                return;
+            }
+
+            try {
+                const result = await mammoth.convertToHtml({ arrayBuffer: data });
+                setDocxPreview({
+                    name: item.name,
+                    html: DOMPurify.sanitize(result.value),
+                });
+            } catch (conversionError) {
+                console.error("Could not preview Word document:", conversionError);
+                setError("This Word document could not be previewed. You can still download it.");
+            } finally {
+                setTextPreviewLoading(false);
+            }
+            return;
+        }
+
+        if (/\.(txt|csv|json|md|log|xml|html|css|js|jsx|ts|tsx)$/i.test(item.name)) {
+            setTextPreviewLoading(true);
+            setError(null);
+            const { data, error: readError } = await readProjectTextFile(
+                projectId,
+                currentFolder,
+                item.name
+            );
+            setTextPreviewLoading(false);
+            if (readError) {
+                console.error("Could not read text file:", readError);
+                setError(readError.message || "Could not read this text file.");
+                return;
+            }
+            setTextPreview({ name: item.name, content: data });
+            return;
+        }
+
+        const { error: openError } = await openProjectFile(projectId, currentFolder, item.name);
+        if (openError) {
+            console.error("Could not open file:", openError);
+            setError(openError.message || "Could not open this file.");
+        }
+    }
+
+    function canPreviewFile(fileName) {
+        return /\.(docx|pdf|png|jpe?g|gif|webp|svg|txt|csv|mp4|webm|mp3|wav)$/i.test(fileName);
     }
 
     // Navigate up folder hierarchy
@@ -473,7 +542,9 @@ export default function FilesTab({ projectId, userId, membership }) {
                             <div
                                 style={{
                                     ...styles.itemLeft,
-                                    cursor: item.type === "folder" ? "pointer" : "default",
+                                    cursor: item.type === "folder" || item.type === "file" || item.type === "archive"
+                                        ? "pointer"
+                                        : "default",
                                 }}
                                 onClick={() => {
                                     if (item.type === "folder" && renamingId !== item.id) {
@@ -483,8 +554,21 @@ export default function FilesTab({ projectId, userId, membership }) {
                                                 ? `${currentFolder}/${item.name}`
                                                 : item.name
                                         );
+                                    } else if (item.type !== "folder" && renamingId !== item.id) {
+                                        if (canPreviewFile(item.name)) {
+                                            handleOpenFile(item);
+                                        } else {
+                                            handleDownload(item.name);
+                                        }
                                     }
                                 }}
+                                title={
+                                    item.type === "folder"
+                                        ? "Open folder"
+                                        : canPreviewFile(item.name)
+                                        ? "Click to preview file"
+                                        : "Click to download file"
+                                }
                             >
                                 <div style={styles.itemIconWrapper}>
                                     {item.type === "folder" ? (
@@ -586,6 +670,55 @@ export default function FilesTab({ projectId, userId, membership }) {
                                         </>
                                     )}
                                 </div>
+
+                                {textPreviewLoading && (
+                                    <div style={styles.modalOverlay}>
+                                        <div style={styles.modalContent}>
+                                            <p style={{ margin: 0 }}>Opening {textPreview?.name || "text file"}...</p>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {textPreview && (
+                                    <div style={styles.modalOverlay} onClick={() => setTextPreview(null)}>
+                                        <div style={styles.textPreviewModal} onClick={(event) => event.stopPropagation()}>
+                                            <div style={styles.textPreviewHeader}>
+                                                <strong>{textPreview.name}</strong>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setTextPreview(null)}
+                                                    style={styles.closePreviewButton}
+                                                    aria-label="Close preview"
+                                                >
+                                                    ×
+                                                </button>
+                                            </div>
+                                            <pre style={styles.textPreviewContent}>{textPreview.content}</pre>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {docxPreview && (
+                                    <div style={styles.modalOverlay} onClick={() => setDocxPreview(null)}>
+                                        <div style={styles.docxPreviewModal} onClick={(event) => event.stopPropagation()}>
+                                            <div style={styles.textPreviewHeader}>
+                                                <strong>{docxPreview.name}</strong>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setDocxPreview(null)}
+                                                    style={styles.closePreviewButton}
+                                                    aria-label="Close preview"
+                                                >
+                                                    ×
+                                                </button>
+                                            </div>
+                                            <article
+                                                style={styles.docxPreviewContent}
+                                                dangerouslySetInnerHTML={{ __html: docxPreview.html }}
+                                            />
+                                        </div>
+                                    </div>
+                                )}
                             </div>
 
                             <div style={styles.itemRight}>
@@ -617,6 +750,15 @@ export default function FilesTab({ projectId, userId, membership }) {
                                                 style={styles.dropdownItemBtn}
                                             >
                                                 Rename
+                                            </button>
+                                        )}
+                                        {item.type !== "folder" && canPreviewFile(item.name) && (
+                                            <button
+                                                type="button"
+                                                onClick={() => handleOpenFile(item)}
+                                                style={styles.dropdownItemBtn}
+                                            >
+                                                Open
                                             </button>
                                         )}
                                         {item.type !== "folder" && (
@@ -948,6 +1090,65 @@ const styles = {
         width: "320px",
         color: "#111827",
         boxShadow: "0 10px 25px rgba(0,0,0,0.1)",
+    },
+    textPreviewModal: {
+        display: "flex",
+        flexDirection: "column",
+        width: "min(900px, calc(100vw - 32px))",
+        height: "min(720px, calc(100vh - 48px))",
+        backgroundColor: "#ffffff",
+        borderRadius: "10px",
+        overflow: "hidden",
+        boxShadow: "0 10px 30px rgba(0,0,0,0.2)",
+    },
+    textPreviewHeader: {
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        padding: "14px 18px",
+        borderBottom: "1px solid #e5e7eb",
+        color: "#111827",
+    },
+    closePreviewButton: {
+        border: "none",
+        background: "transparent",
+        color: "#6b7280",
+        fontSize: "24px",
+        lineHeight: 1,
+        cursor: "pointer",
+    },
+    textPreviewContent: {
+        flex: 1,
+        overflow: "auto",
+        margin: 0,
+        padding: "18px",
+        backgroundColor: "#111827",
+        color: "#e5e7eb",
+        fontFamily: "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace",
+        fontSize: "13px",
+        lineHeight: 1.6,
+        whiteSpace: "pre-wrap",
+        overflowWrap: "anywhere",
+    },
+    docxPreviewModal: {
+        display: "flex",
+        flexDirection: "column",
+        width: "min(900px, calc(100vw - 32px))",
+        height: "min(720px, calc(100vh - 48px))",
+        backgroundColor: "#ffffff",
+        borderRadius: "10px",
+        overflow: "hidden",
+        boxShadow: "0 10px 30px rgba(0,0,0,0.2)",
+    },
+    docxPreviewContent: {
+        flex: 1,
+        overflow: "auto",
+        padding: "32px",
+        color: "#111827",
+        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+        fontSize: "15px",
+        lineHeight: 1.6,
+        backgroundColor: "#f9fafb",
     },
     modalTitle: {
         margin: "0 0 16px 0",

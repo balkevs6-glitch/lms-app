@@ -30,7 +30,7 @@ The app is intentionally small and direct:
 - `src/app.jsx` bootstraps Supabase auth state and decides whether to show login, signup, or the dashboard.
 - `src/pages/dashboard.jsx` loads the signed-in user's profile and current project memberships, then renders either a project detail view or the project list.
 - `src/pages/project_page.jsx` is the main project workspace; it is where project-specific actions and tabs are composed.
-- `src/services/*.js` holds Supabase database calls (`projects.js`, `users.js`, `chat.js`, etc.). Keep query logic here instead of in components.
+- Supabase queries live in the feature’s own file, like `src/features/files/files.js`. Don’t create a separate services folder.
 - `src/supabaseClient.js` is the shared Supabase client entry point. Do not add service-role secrets or public-write credentials to frontend code.
 
 The repo is organized around a few conventions that are important for correctness:
@@ -45,7 +45,7 @@ The repo is organized around a few conventions that are important for correctnes
 - Do not invent a global `role` column or assume a user is globally a maintainer or contributor; the role is only valid inside the specific project.
 - Keep frontend code in functional React components with hooks. Avoid class components or Redux-style state management.
 - Use `useEffect` + `useState` for simple data loads and session handling. The app is small enough that a lightweight local state pattern is the default.
-- When a feature needs DB access, prefer a helper in `src/services` and return an explicit `{ data, error }` object rather than silently swallowing failures.
+- When a feature needs DB access, prefer a helper in its feature file and return an explicit `{ data, error }` object rather than silently swallowing failures.
 - The codebase is intentionally frontend-first. Most direct DB reads/writes happen from the browser through Supabase; only use a server-side path when the repo explicitly requires it.
 - For auth and session restoration, rely on Supabase's browser session handling (`getSession`, `onAuthStateChange`) instead of custom token logic.
 - Do not add custom WebRTC or Socket.IO patterns for chat/calls unless the architecture is intentionally changed; this project relies on Supabase auth and Jitsi for calls.
@@ -71,7 +71,7 @@ The repo is organized around a few conventions that are important for correctnes
 - Supabase handles database, auth, storage and realtime chat. Do NOT add Socket.io.
 - Video calls: embedded Jitsi Meet only. No custom WebRTC.
 - Never put the Supabase service_role key in frontend code. Use only the anon key there.
-- Keep Supabase queries in a `services/` folder, not inside components.
+- Supabase queries live in the feature’s own file, like `features/files/files.js`. Don’t create a separate services folder.
 - Handle loading and error states on every data fetch.
-- Tables: users, classes, class_members, posts, files, folders, messages. Don't invent new ones without asking.
+- Tables and concepts: users, projects, project_members, posts, files, folders, messages. Don't invent new ones without asking.
 - Don't add features outside the v1 plan.

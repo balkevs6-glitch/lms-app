@@ -28,7 +28,10 @@ export default function ProjectPage({ projectId, session, onBack }) {
             const result = await getProject(projectId, userId);
             if (!active) return;
             if (result.error) setError(result.reason === "membership" ? "You are not a member of this project." : "Project not found.");
-            else { setMembership(result.data.membership); setProject(result.data.project); }
+            else {
+                setMembership({ ...result.data.membership, user_id: userId });
+                setProject(result.data.project);
+            }
             setLoading(false);
         }
         load();
