@@ -25,6 +25,14 @@ export async function getProject(projectId, userId) {
     return { data: { membership, project }, error: null };
 }
 
+export async function getProjectMembers(projectId) {
+    return supabase
+        .from("project_members")
+        .select("role, joined_at, users(id, name, avatar_url, created_at)")
+        .eq("project_id", projectId)
+        .order("joined_at", { ascending: true });
+}
+
 export async function createProject(name, description = null) {
     return supabase.rpc("create_project", {
         p_name: name,
@@ -50,7 +58,7 @@ export async function joinProject(code) {
 export async function getUserProjects(userId) {
     return supabase
         .from("project_members")
-        .select("role, projects(id, name, description, join_code)")
+        .select("role, projects(id, name, description, join_code, created_by)")
         .eq("user_id", userId);
 }
 

@@ -1,15 +1,25 @@
 
-export default function ProjectHeader({ projectId, project, membership, onBack, onProjectChange }) {
+import { useState } from "react";
+import ProjectMembersModal from "./ProjectMembersModal";
 
-    return <header style={styles.header}>
-        <div style={styles.left}>
-            {onBack && <button onClick={onBack} style={styles.button}>← Back</button>}
-            <div>
-                <h1 style={styles.title}>{project?.name}</h1>
-                <div style={styles.meta}><span>{membership?.role}</span>{project?.join_code && <span>Code: <strong>{project.join_code}</strong></span>}</div>
+export default function ProjectHeader({ projectId, project, membership, onBack, onProjectChange }) {
+    const [showMembers, setShowMembers] = useState(false);
+
+    return <>
+        <header style={styles.header}>
+            <div style={styles.left}>
+                {onBack && <button onClick={onBack} style={styles.button}>← Back</button>}
+                <div>
+                    <h1 style={styles.title}>{project?.name}</h1>
+                    <div style={styles.meta}><span>{membership?.role}</span>{project?.join_code && <span>Code: <strong>{project.join_code}</strong></span>}</div>
+                </div>
             </div>
-        </div>
-    </header>;
+            <button type="button" onClick={() => setShowMembers(true)} style={styles.membersButton}>
+                Members
+            </button>
+        </header>
+        {showMembers && <ProjectMembersModal projectId={projectId} onClose={() => setShowMembers(false)} />}
+    </>;
 }
 
 const styles = {
@@ -34,4 +44,12 @@ const styles = {
         borderColor: "#e5e7eb",
         borderRadius: 8 
     }, 
+    membersButton: {
+        padding: "8px 12px",
+        border: "1px solid #e5e7eb",
+        borderRadius: 8,
+        backgroundColor: "#fff",
+        color: "#374151",
+        cursor: "pointer",
+    },
 };

@@ -8,6 +8,19 @@ export async function getUserProfile(userId) {
         .single();
 }
 
+export async function searchUsers(searchTerm) {
+    const term = searchTerm.trim();
+    if (!term) return { data: [], error: null };
+
+    return supabase
+        .from("users")
+        .select("id, name, avatar_url, is_active")
+        .ilike("name", `%${term}%`)
+        .eq("is_active", true)
+        .order("name", { ascending: true })
+        .limit(20);
+}
+
 export async function updateUserName(userId, name) {
     return supabase
         .from("users")

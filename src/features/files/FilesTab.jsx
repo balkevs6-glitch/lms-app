@@ -28,6 +28,7 @@ export default function FilesTab({ projectId, userId, membership }) {
     // Rename state
     const [renamingId, setRenamingId] = useState(null);
     const [renameValue, setRenameValue] = useState("");
+    const canManageFolders = membership?.role === "maintainer";
 
     // Load files from Supabase Storage
     async function loadFiles() {
@@ -295,7 +296,7 @@ export default function FilesTab({ projectId, userId, membership }) {
             )}
 
             {/* Minimalist Action Buttons with Sharp Corners (Only shown at root level) */}
-            {!currentFolder && (
+            {!currentFolder && canManageFolders && (
                 <div style={styles.buttonGroup}>
                     <button
                         type="button"
@@ -605,17 +606,19 @@ export default function FilesTab({ projectId, userId, membership }) {
                                         style={styles.dropdownMenu}
                                         onClick={(e) => e.stopPropagation()}
                                     >
-                                        <button
-                                            type="button"
-                                            onClick={() => {
-                                                setRenameValue(item.name);
-                                                setRenamingId(item.id);
-                                                setActiveMenuId(null);
-                                            }}
-                                            style={styles.dropdownItemBtn}
-                                        >
-                                            Rename
-                                        </button>
+                                        {(item.type !== "folder" || canManageFolders) && (
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setRenameValue(item.name);
+                                                    setRenamingId(item.id);
+                                                    setActiveMenuId(null);
+                                                }}
+                                                style={styles.dropdownItemBtn}
+                                            >
+                                                Rename
+                                            </button>
+                                        )}
                                         {item.type !== "folder" && (
                                             <button
                                                 type="button"
@@ -625,13 +628,15 @@ export default function FilesTab({ projectId, userId, membership }) {
                                                 Download
                                             </button>
                                         )}
-                                        <button
-                                            type="button"
-                                            onClick={() => handleDeleteItem(item)}
-                                            style={styles.dropdownDeleteBtn}
-                                        >
-                                            Delete
-                                        </button>
+                                        {(item.type !== "folder" || canManageFolders) && (
+                                            <button
+                                                type="button"
+                                                onClick={() => handleDeleteItem(item)}
+                                                style={styles.dropdownDeleteBtn}
+                                            >
+                                                Delete
+                                            </button>
+                                        )}
                                     </div>
                                 )}
                             </div>

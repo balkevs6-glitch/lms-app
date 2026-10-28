@@ -5,7 +5,8 @@ import EditProfileModal from "../features/auth/EditProfileModal";
 import { useEffect, useRef, useState } from "react";
 import { getUserProjects, renameProject, deleteProject, leaveProject } from "../features/projects/projects";
 import { supabase } from "../supabaseClient";
-import { getUserProfile } from "../features/auth/users";
+import { getUserProfile, searchUsers } from "../features/auth/users";
+import SearchDetailsModal from "../features/search/SearchDetailsModal";
 
 export default function Dashboard({ session }) {
   const [profile, setProfile] = useState(null);
@@ -30,6 +31,14 @@ export default function Dashboard({ session }) {
 
   // Edit profile modal
   const [showEditProfile, setShowEditProfile] = useState(false);
+  const [searchType, setSearchType] = useState("projects");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [userResults, setUserResults] = useState([]);
+  const [userSearchLoading, setUserSearchLoading] = useState(false);
+  const [userSearchError, setUserSearchError] = useState("");
+  const [selectedSearchResult, setSelectedSearchResult] = useState(null);
+  const [selectedSearchResultType, setSelectedSearchResultType] = useState(null);
+  const [searchFocused, setSearchFocused] = useState(false);
 
   const userId = session?.user?.id;
 
@@ -55,6 +64,37 @@ export default function Dashboard({ session }) {
   useEffect(() => {
     loadProjects();
   }, [userId]);
+
+  useEffect(() => {
+    if (searchType !== "users" || !searchQuery.trim()) {
+      setUserResults([]);
+      setUserSearchError("");
+      setUserSearchLoading(false);
+      return undefined;
+    }
+
+    let active = true;
+    const timer = window.setTimeout(async () => {
+      setUserSearchLoading(true);
+      setUserSearchError("");
+      const { data, error: requestError } = await searchUsers(searchQuery);
+      if (!active) return;
+
+      if (requestError) {
+        console.error("Could not search users:", requestError);
+        setUserResults([]);
+        setUserSearchError(requestError.message || "Could not search users.");
+      } else {
+        setUserResults(data || []);
+      }
+      setUserSearchLoading(false);
+    }, 300);
+
+    return () => {
+      active = false;
+      window.clearTimeout(timer);
+    };
+  }, [searchQuery, searchType]);
 
   useEffect(() => {
     async function loadProfile() {
@@ -134,6 +174,12 @@ export default function Dashboard({ session }) {
   // Profile updates can temporarily omit is_active when the initial profile
   // query failed, and that must not lock the user out.
   const isActive = profile?.is_active !== false;
+  const normalizedSearch = searchQuery.trim().toLowerCase();
+  const searchedProjects = normalizedSearch
+    ? projects.filter(({ projects: project }) =>
+      project?.name?.toLowerCase().includes(normalizedSearch)
+    )
+    : projects;
 
   if (loading) {
     return (
@@ -183,18 +229,202 @@ export default function Dashboard({ session }) {
 
   return (
     <div style={styles.container}>
-      <header style={styles.header}>
-        <div style={styles.brand}>
+      <style>{`
+        @media (max-width: 640px) {
+          .dashboard-header {
+            flex-wrap: wrap;
+            gap: 10px;
+            padding: 10px 14px;
+          }
+
+          .dashboard-brand {
+            gap: 8px;
+          }
+
+          .dashboard-brand-copy {
+            display: none;
+          }
+
+          .dashboard-header-search {
+            order: 3;
+            flex-basis: 100%;
+            max-width: none;
+            min-width: 0;
+            margin: 2px 0 0;
+          }
+
+          .dashboard-search-bar {
+            padding: 5px;
+            gap: 5px;
+          }
+
+          .dashboard-search-select {
+            max-width: 92px;
+            padding: 7px 5px;
+            font-size: 11px;
+          }
+
+          .dashboard-search-input {
+            padding: 7px 5px;
+            font-size: 13px;
+          }
+
+          .dashboard-account-actions {
+            gap: 6px !important;
+          }
+
+          .dashboard-sign-out {
+            padding: 6px 8px !important;
+            font-size: 11px !important;
+          }
+
+          .dashboard-main {
+            padding: 20px 14px !important;
+          }
+
+          .dashboard-welcome {
+            padding: 16px 18px !important;
+            margin-bottom: 20px !important;
+          }
+
+          .dashboard-welcome-title {
+            font-size: 17px !important;
+          }
+
+          .dashboard-welcome-desc {
+            font-size: 12px !important;
+          }
+
+          .dashboard-section-header {
+            align-items: flex-start !important;
+            gap: 8px;
+          }
+
+          .dashboard-section-actions {
+            gap: 5px !important;
+          }
+
+          .dashboard-section-actions button {
+            padding: 6px 8px !important;
+            font-size: 11px !important;
+          }
+        }
+      `}</style>
+      <header className="dashboard-header" style={styles.header}>
+        <div className="dashboard-brand" style={styles.brand}>
           {/* App logo */}
           <div style={styles.logoMark}>S</div>
 
-          <div>
+          <div className="dashboard-brand-copy">
             <h1 style={styles.appTitle}>School Platform</h1>
             <p style={styles.userSubtitle}>Signed in as <strong>{name}</strong></p>
           </div>
         </div>
 
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <div className="dashboard-header-search" style={styles.headerSearch}>
+          <div className="dashboard-search-bar" style={styles.searchBar}>
+            <div style={styles.searchLogo}>S</div>
+            <select
+              value={searchType}
+              onChange={(event) => {
+                setSearchType(event.target.value);
+                setSearchQuery("");
+              }}
+              className="dashboard-search-select"
+              style={styles.searchSelect}
+              aria-label="Search category"
+            >
+              <option value="projects">Projects</option>
+              <option value="users">Users</option>
+            </select>
+            <input
+              value={searchQuery}
+              onFocus={() => setSearchFocused(true)}
+              onBlur={() => window.setTimeout(() => setSearchFocused(false), 150)}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              placeholder={
+                searchType === "projects"
+                  ? "Search projects..."
+                  : "Search users..."
+              }
+              className="dashboard-search-input"
+              style={styles.searchInput}
+              aria-label={`Search ${searchType}`}
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery("")}
+                style={styles.clearSearch}
+                aria-label="Clear search"
+              >
+                ×
+              </button>
+            )}
+          </div>
+
+          {searchFocused && searchQuery.trim() && (
+            <div style={styles.searchDropdown} onMouseDown={(event) => event.preventDefault()}>
+              {searchType === "users" ? (
+                userSearchLoading ? (
+                  <p style={styles.searchStatus}>Searching users...</p>
+                ) : userSearchError ? (
+                  <p style={styles.searchError}>{userSearchError}</p>
+                ) : userResults.length === 0 ? (
+                  <p style={styles.searchStatus}>No users found.</p>
+                ) : (
+                  userResults.map((user) => (
+                    <button
+                      type="button"
+                      key={user.id}
+                      style={styles.dropdownResult}
+                      onClick={() => {
+                        setSelectedSearchResult(user);
+                        setSelectedSearchResultType("user");
+                        setSearchFocused(false);
+                      }}
+                    >
+                      {user.avatar_url ? (
+                        <img src={user.avatar_url} alt="" style={styles.searchAvatar} />
+                      ) : (
+                        <div style={styles.searchAvatarFallback}>
+                          {user.name?.[0]?.toUpperCase() || "?"}
+                        </div>
+                      )}
+                      <span>
+                        <strong>{user.name || "Unnamed user"}</strong>
+                        <small style={styles.resultType}>User</small>
+                      </span>
+                    </button>
+                  ))
+                )
+              ) : searchedProjects.length === 0 ? (
+                <p style={styles.searchStatus}>No matching projects.</p>
+              ) : (
+                searchedProjects.map(({ projects: project, role }) => (
+                  <button
+                    type="button"
+                    key={project.id}
+                    style={styles.dropdownResult}
+                    onClick={() => {
+                      setSelectedSearchResult(project);
+                      setSelectedSearchResultType("project");
+                      setSearchFocused(false);
+                    }}
+                  >
+                    <div style={styles.projectAvatar}>S</div>
+                    <span>
+                      <strong>{project.name}</strong>
+                      <small style={styles.resultType}>{role} project</small>
+                    </span>
+                  </button>
+                ))
+              )}
+            </div>
+          )}
+        </div>
+
+        <div className="dashboard-account-actions" style={{ display: "flex", alignItems: "center", gap: 10 }}>
           {/* Clickable avatar → opens Edit Profile */}
           <button
             onClick={() => setShowEditProfile(true)}
@@ -207,13 +437,13 @@ export default function Dashboard({ session }) {
             }
           </button>
 
-          <button onClick={handleSignOut} style={styles.signOutBtn}>
+          <button className="dashboard-sign-out" onClick={handleSignOut} style={styles.signOutBtn}>
             Sign Out
           </button>
         </div>
       </header>
 
-      <main style={styles.main}>
+      <main className="dashboard-main" style={styles.main}>
         {error && (
           <div style={styles.errorBanner}>
             <strong>Notice:</strong> Could not load profile from <code>public.users</code> ({error}).
@@ -221,19 +451,19 @@ export default function Dashboard({ session }) {
           </div>
         )}
 
-        <div style={styles.welcomeCard}>
-          <h2 style={styles.welcomeTitle}>Welcome back, {name}!</h2>
+        <div className="dashboard-welcome" style={styles.welcomeCard}>
+          <h2 className="dashboard-welcome-title" style={styles.welcomeTitle}>Welcome back, {name}!</h2>
 
-          <p style={styles.welcomeDesc}>
+          <p className="dashboard-welcome-desc" style={styles.welcomeDesc}>
             This is your projects dashboard. Create a project to share your code,
             or join one with a code from a maintainer.
           </p>
         </div>
 
-        <div style={styles.sectionHeader}>
+        <div className="dashboard-section-header" style={styles.sectionHeader}>
           <h3 style={styles.sectionTitle}>Your Projects</h3>
 
-          <div style={styles.sectionActions}>
+          <div className="dashboard-section-actions" style={styles.sectionActions}>
             <button onClick={() => setShowJoinModal(true)} style={styles.secondaryBtn}>
               Join Project
             </button>
@@ -255,7 +485,9 @@ export default function Dashboard({ session }) {
           </div>
         ) : projects.length === 0 ? (
           <div style={styles.emptyState}>
-            <p style={styles.emptyText}>No projects joined yet.</p>
+            <p style={styles.emptyText}>
+              No projects joined yet.
+            </p>
             <p style={styles.emptySubtext}>
               Create your first project, or join one with a code from its maintainer.
             </p>
@@ -395,6 +627,22 @@ export default function Dashboard({ session }) {
           }}
         />
       )}
+
+      {selectedSearchResult && (
+        <SearchDetailsModal
+          result={selectedSearchResult}
+          type={selectedSearchResultType}
+          onClose={() => {
+            setSelectedSearchResult(null);
+            setSelectedSearchResultType(null);
+          }}
+          onOpenProject={() => {
+            setSelectedProjectId(selectedSearchResult.id);
+            setSelectedSearchResult(null);
+            setSelectedSearchResultType(null);
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -410,6 +658,7 @@ const styles = {
     display: "flex",
     justifyContent: "space-between",
     alignItems: "center",
+    gap: "24px",
     padding: "16px 32px",
     backgroundColor: "#ffffff",
     borderBottom: "1px solid #eaeaea",
@@ -418,6 +667,14 @@ const styles = {
     display: "flex",
     alignItems: "center",
     gap: "12px",
+    flexShrink: 0,
+  },
+  headerSearch: {
+    position: "relative",
+    flex: 1,
+    maxWidth: "520px",
+    minWidth: "220px",
+    margin: "0 auto",
   },
   avatarBtn: {
     width: "36px",
@@ -526,6 +783,131 @@ const styles = {
     display: "flex",
     gap: "10px",
     alignItems: "center",
+  },
+  searchBar: {
+    display: "flex",
+    gap: "8px",
+    padding: "8px",
+    backgroundColor: "#ffffff",
+    border: "1px solid #e5e7eb",
+    borderRadius: "10px",
+    boxShadow: "0 1px 3px rgba(17, 24, 39, .06)",
+  },
+  searchLogo: {
+    width: "28px",
+    height: "28px",
+    flexShrink: 0,
+    borderRadius: "7px",
+    backgroundColor: "#111827",
+    color: "#ffffff",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontSize: "13px",
+    fontWeight: "700",
+  },
+  searchSelect: {
+    padding: "9px 10px",
+    fontSize: "13px",
+    color: "#374151",
+    backgroundColor: "#f9fafb",
+    border: "1px solid #e5e7eb",
+    borderRadius: "7px",
+    border: "none",
+    backgroundColor: "#ffffff",
+    cursor: "pointer",
+  },
+  searchInput: {
+    flex: 1,
+    minWidth: 0,
+    padding: "9px 10px",
+    fontSize: "14px",
+    color: "#111827",
+    border: "none",
+    borderRadius: "7px",
+    outline: "none",
+  },
+  searchDropdown: {
+    position: "absolute",
+    top: "calc(100% + 6px)",
+    left: 0,
+    right: 0,
+    zIndex: 1000,
+    display: "grid",
+    gap: "2px",
+    maxHeight: "360px",
+    overflowY: "auto",
+    padding: "6px",
+    backgroundColor: "#ffffff",
+    border: "1px solid #e5e7eb",
+    borderRadius: "10px",
+    boxShadow: "0 12px 30px rgba(17, 24, 39, .14)",
+  },
+  dropdownResult: {
+    display: "flex",
+    alignItems: "center",
+    gap: "10px",
+    padding: "10px",
+    width: "100%",
+    textAlign: "left",
+    border: "none",
+    borderRadius: "7px",
+    backgroundColor: "#ffffff",
+    cursor: "pointer",
+  },
+  resultType: {
+    display: "block",
+    marginTop: "3px",
+    color: "#6b7280",
+    fontSize: "11px",
+  },
+  searchStatus: {
+    margin: 0,
+    padding: "12px 10px",
+    color: "#6b7280",
+    fontSize: "13px",
+  },
+  clearSearch: {
+    border: "none",
+    background: "transparent",
+    color: "#6b7280",
+    fontSize: "20px",
+    lineHeight: 1,
+    cursor: "pointer",
+  },
+  projectAvatar: {
+    width: "34px",
+    height: "34px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
+    borderRadius: "8px",
+    backgroundColor: "#111827",
+    color: "#ffffff",
+    fontWeight: "700",
+  },
+  searchAvatar: {
+    width: "34px",
+    height: "34px",
+    borderRadius: "50%",
+    objectFit: "cover",
+  },
+  searchAvatarFallback: {
+    width: "34px",
+    height: "34px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: "50%",
+    backgroundColor: "#111827",
+    color: "#ffffff",
+    fontWeight: "600",
+  },
+  searchError: {
+    margin: 0,
+    color: "#b91c1c",
+    fontSize: "13px",
   },
   actionBtn: {
     padding: "8px 16px",
